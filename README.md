@@ -21,3 +21,11 @@ repeat 2 times
   testproc
 *repeat
 ```
+
+Go until you reach the wall:
+```
+repeat while not(wall)
+  step
+  print(not(wall))
+*repeat
+```

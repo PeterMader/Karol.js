@@ -15,6 +15,7 @@ Karol.Interpreter = class extends Karol.KarolParser {
 
     this.speed = 500
     this.running = false
+    this.stopped = false
   }
 
   processBlock (endToken) {
@@ -58,6 +59,7 @@ Karol.Interpreter = class extends Karol.KarolParser {
       this.callStack.pop()
     }
     this.running = false
+    this.stopped = false
   }
 
   throwTypeError (message, position) {
@@ -65,7 +67,13 @@ Karol.Interpreter = class extends Karol.KarolParser {
   }
 
   wait (ms) {
-    return new Promise((resolve) => window.setTimeout(resolve, ms))
+    // TODO: implement pause
+    return new Promise((resolve) => {
+      if (this.stopped) {
+        throw 'Execution stopped'
+      }
+      window.setTimeout(resolve, ms)
+    })
   }
 
   async run (source) {
@@ -86,6 +94,18 @@ Karol.Interpreter = class extends Karol.KarolParser {
     this.cleanUp()
     this.emit('finish')
     return result
+  }
+
+  pause () {
+    this.running = false
+  }
+
+  unpause () {
+    this.running = true
+  }
+
+  stop () {
+    this.stopped = true
   }
 
   async evaluateBlock (block) {
@@ -135,14 +155,22 @@ Karol.Interpreter = class extends Karol.KarolParser {
       }
     }
     if (tree.value === 'repeat') {
-      const {first, block} = tree
-      const times = await this.evaluate(first)
-      if (times.type !== Karol.Value.NUMBER) {
-        throw new Karol.TypeError(`repeat structure: expected ${Karol.Value.NUMBER}, got ${times.type}`)
-      }
-      let i
-      for (i = 0; i < times.value; i += 1) {
-        await this.evaluateBlock(block)
+      const {block} = tree
+      if (typeof tree.times !== 'undefined') {
+        // repeat ... times structure
+        const times = await this.evaluate(tree.times)
+        if (times.type !== Karol.Value.NUMBER) {
+          throw new Karol.TypeError(`repeat structure: expected ${Karol.Value.NUMBER}, got ${times.type}`)
+        }
+        let i
+        for (i = 0; i < times.value; i += 1) {
+          await this.evaluateBlock(block)
+        }
+      } else  {
+        // repeat while ... structure
+        while ((await this.evaluate(tree.condition)).castToBoolean().value) {
+          await this.evaluateBlock(block)
+        }
       }
     } else if (tree.value === 'procedure') {
       const {first, block} = tree

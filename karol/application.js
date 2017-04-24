@@ -57,6 +57,24 @@ Karol.Application = class {
     }))
 
     interpreter.addProcedure(new Karol.Procedure({
+      name: 'wall',
+      cb: () => {
+        const position = this.robot.getPositionBefore()
+        return Karol.Value.createBoolean(!this.world.getTileAt(position.x, position.z))
+      }
+    }))
+
+    interpreter.addProcedure(new Karol.Procedure({
+      name: 'not',
+      cb: (args) => {
+        return Karol.Value.createBoolean(!args[0].castToBoolean().value)
+      },
+      expectedArguments: [{
+        type: Karol.Value.ANY
+      }]
+    }))
+
+    interpreter.addProcedure(new Karol.Procedure({
       name: 'fast',
       cb: () => {
         interpreter.speed = 200
@@ -139,8 +157,20 @@ Karol.Application = class {
     ctx.fill()
   }
 
+  createImage (openDialog, imageType) {
+    const dataURL = this.ctx.canvas.toDataURL(imageType || 'image/png')
+    return dataURL
+  }
+
   printError (error) {
-    this.karolConsole.error(error)
+    if (error instanceof window.Error) {
+      this.karolConsole.error(new Karol.Error(`Interpreter error in file ${error.fileName}: ` + error.message, {
+        line: error.lineNumber,
+        column: error.columnNumber
+      }))
+    } else {
+      this.karolConsole.error(error)
+    }
   }
 
 }

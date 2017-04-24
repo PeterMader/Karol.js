@@ -19,7 +19,7 @@ Karol.Procedure = class {
       if (!real) {
         throw new Karol.TypeError(`procedure ${this.name}: missing argument ${index}, expected it to be of type ${expectedArguments[index]}`)
       }
-      if (expected.type !== real.type) {
+      if (expected.type !== real.type && expected.type !== Karol.Value.ANY) {
         throw new Karol.TypeError(`procedure ${this.name}: expected argument ${index} to be of type ${expectedArguments[index]}, got type ${args[index].type}`)
       }
     }

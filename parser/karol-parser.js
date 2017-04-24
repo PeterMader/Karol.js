@@ -9,20 +9,33 @@ Karol.KarolParser = class extends Karol.EventEmitter {
   prepareParser () {
     const {parser} = this
     parser.tokenizer.addKeyWord('repeat')
+    parser.tokenizer.addKeyWord('times')
+    parser.tokenizer.addKeyWord('while')
     parser.tokenizer.addKeyWord('*repeat')
     parser.registerSymbol(new Karol.PrefixOperator({
       value: 'repeat',
       bindingPower: 0,
       nullDenotation: (self) => {
         const item = self.clone()
-        item.first = parser.expression(self.bindingPower)
-        parser.nextToken('times')
+        const next = parser.expression(0)
+        if (next.value === 'while') {
+          item.condition = parser.expression(0)
+        } else {
+          item.times = next
+          parser.nextToken('times')
+        }
         item.block = this.processBlock('*repeat')
         return item
       }
     }))
     parser.registerSymbol(new Karol.ParserSymbol({
       value: '*repeat'
+    }))
+    parser.registerSymbol(new Karol.ParserSymbol({
+      value: 'times'
+    }))
+    parser.registerSymbol(new Karol.ParserSymbol({
+      value: 'while'
     }))
 
     parser.tokenizer.addKeyWord('procedure')
@@ -32,7 +45,7 @@ Karol.KarolParser = class extends Karol.EventEmitter {
       nullDenotation: (self) => {
         const item = self.clone()
         if (parser.token.type !== Karol.Token.TOKEN_TYPE_IDENTIFIER) {
-          throw new SyntaxError(`syntax error: expected identifier as name for procedure, got ${parser.token.type} token`)
+          throw new Karol.SyntaxError(`expected identifier as name for procedure, got ${parser.token.type} token`)
         }
         item.first = parser.token
         parser.nextToken()
@@ -70,7 +83,7 @@ Karol.KarolParser = class extends Karol.EventEmitter {
             break
           }
           if (parser.token.value !== ',') {
-            throw new SyntaxError(`syntax error: expected ',' token, got ${parser.token.value}`)
+            throw new Karol.SyntaxError(`expected ',' token, got ${parser.token.value}`)
           }
           parser.nextToken()
         }

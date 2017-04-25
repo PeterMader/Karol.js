@@ -74,6 +74,7 @@ Karol.KarolParser = class extends Karol.EventEmitter {
         item.first = left
         item.args = []
         if (parser.token.value === ')') {
+          parser.nextToken()
           return item
         }
         while (true) {
@@ -96,6 +97,17 @@ Karol.KarolParser = class extends Karol.EventEmitter {
     }))
     parser.registerSymbol(new Karol.ParserSymbol({
       value: ','
+    }))
+
+    parser.tokenizer.addKeyWord('=')
+    parser.registerSymbol(new Karol.AssignmentOperator({
+      value: '='
+    }))
+
+    parser.tokenizer.addKeyWord(';')
+    parser.registerSymbol(new Karol.ParserSymbol({
+      value: ';',
+      bindingPower: -1
     }))
   }
 

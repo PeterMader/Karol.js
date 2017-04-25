@@ -7,6 +7,13 @@ Karol.StringIterator = class {
     this.line = 0
     this.column = 0
     this.char = ''
+    this.wasNewLine = false
+  }
+
+  hadNewLine () {
+    const nl = this.wasNewLine
+    this.wasNewLine = false
+    return nl
   }
 
   hasNext () {
@@ -32,6 +39,7 @@ Karol.StringIterator = class {
     } else {
       this.column += 1
       if (this.char === '\n') {
+        this.wasNewLine = true
         this.line += 1
         this.column = 0
       }

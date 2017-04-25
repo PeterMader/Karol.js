@@ -54,14 +54,19 @@ Karol.Parser = class {
   }
 
   expression (rightBindingPower) {
-    let left
+    // skip all semicolons
+    while (this.token.value === ';') {
+      this.nextToken()
+    }
+
     if (this.token.value === '#end') {
       throw new Karol.SyntaxError(`Unexpected end of line, expected an expression.`)
       return null
     }
+
     let oldToken = this.token
     this.nextToken()
-    left = oldToken.nullDenotation(oldToken, this)
+    let left = oldToken.nullDenotation(oldToken, this)
     while (rightBindingPower < this.token.bindingPower) {
       oldToken = this.token
       this.nextToken()

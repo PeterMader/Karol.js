@@ -44,10 +44,10 @@ Karol.Tokenizer = class {
         if (ch === 'b') {
           ch = '\b'
         }
-        if (char === 'f') {
+        if (ch === 'f') {
           ch = '\f'
         }
-        if (char === 'n') {
+        if (ch === 'n') {
           ch = '\n'
         }
         if (ch === 'r') {
@@ -56,7 +56,7 @@ Karol.Tokenizer = class {
         if (ch === 't') {
           ch = '\t'
         }
-        str += char
+        str += ch
         continue
       }
       if (ch === '\\') {
@@ -112,7 +112,7 @@ Karol.Tokenizer = class {
         } else if (this.isAlpha(name[0]) && this.isAlphaNumeric(name + ch)) {
           return this.identifierToken(name + ch)
         } else {
-          throw new SyntaxError(`unknown token ${name + ch}`)
+          throw new Karol.SyntaxError(`unknown token ${name + ch}`)
         }
       }
     }
@@ -152,6 +152,8 @@ Karol.Tokenizer = class {
         // identifier
         tokens.push(this.identifierToken(ch))
         iter.back()
+      } else {
+        throw new Karol.SyntaxError(`illegal character "${ch}"`, iter.getCurrentPosition())
       }
     }
 

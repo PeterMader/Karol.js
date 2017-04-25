@@ -4,18 +4,22 @@ Karol.Interpreter = class extends Karol.KarolParser {
     super()
     this.parser = new Karol.Parser()
     this.prepareParser()
-    this.procedures = {}
-    this.callStack = [new Karol.Token({
+    this.nativeScope = {}
+    this.context = new Karol.Context(new Karol.Token({
       value: '<main>',
       position: {
         line: 0,
         column: 0
       }
-    })]
+    }))
 
     this.speed = 500
     this.running = false
     this.stopped = false
+  }
+
+  setExecutionContext (context) {
+    this.context = context
   }
 
   processBlock (endToken) {
@@ -31,8 +35,12 @@ Karol.Interpreter = class extends Karol.KarolParser {
     return block
   }
 
-  addProcedure (procedure) {
-    this.procedures[procedure.name] = procedure
+  addNativeProcedure (procedure) {
+    this.nativeScope[procedure.name] = Karol.Value.createProcedure(procedure)
+  }
+
+  addNativeValue (name, value) {
+    this.nativeScope[name] = value
   }
 
   createProcedure (name, block) {
@@ -42,7 +50,9 @@ Karol.Interpreter = class extends Karol.KarolParser {
       name,
       userDefined: true
     })
-    this.procedures[name] = procedure
+    const value = Karol.Value.createProcedure(procedure)
+    this.context.set(name, value)
+    return value
   }
 
   cleanUp () {
@@ -54,20 +64,21 @@ Karol.Interpreter = class extends Karol.KarolParser {
       }
     }
 
-    // clear the call stack
-    while (this.callStack.length > 1) {
-      this.callStack.pop()
-    }
+    this.context.clearCallStack()
     this.running = false
     this.stopped = false
   }
 
   throwTypeError (message, position) {
-    throw new Karol.TypeError(message, position, this.callStack)
+    throw new Karol.TypeError(message, position, this.context.callStack)
   }
 
   wait (ms) {
-    // TODO: implement pause
+    if (!this.running && !this.stopped) {
+      return new Promise((resolve) => {
+        this.once('unpause', resolve)
+      })
+    }
     return new Promise((resolve) => {
       if (this.stopped) {
         throw 'Execution stopped'
@@ -98,26 +109,31 @@ Karol.Interpreter = class extends Karol.KarolParser {
 
   pause () {
     this.running = false
+    this.emit('pause')
   }
 
   unpause () {
     this.running = true
+    this.emit('unpause')
   }
 
   stop () {
     this.stopped = true
+    this.emit('stop')
   }
 
   async evaluateBlock (block) {
     const {length} = block
     let value = Karol.Value.createNull()
     let i
+    this.context.pushScope()
     for (i = 0; i < length; i += 1) {
       const index = i
       await this.wait(this.speed)
       value = await this.evaluate(block[index])
       this.emit('statement')
     }
+    this.context.popScope()
     return value
   }
 
@@ -128,31 +144,56 @@ Karol.Interpreter = class extends Karol.KarolParser {
     if (tree.type === Karol.Token.TOKEN_TYPE_STRING) {
       return Karol.Value.createString(tree.value)
     }
-    if (this.procedures.hasOwnProperty(tree.value)) {
-      const procedure = this.procedures[tree.value]
-      this.callStack.push(tree)
-      const result = (await procedure.execute([])) || Karol.Value.createNull()
-      this.callStack.pop()
+    if (tree.isAssignment) {
+      const result = await this.evaluate(tree.second)
+      this.context.set(tree.first.value, result)
       return result
     }
-    if (tree.value === '(' && tree.operatorType === Karol.ParserSymbol.OPERATOR_TYPE_BINARY) {
-      if (tree.first.type === Karol.Token.TOKEN_TYPE_IDENTIFIER) {
-        if (this.procedures.hasOwnProperty(tree.first.value)) {
-          const procedure = this.procedures[tree.first.value]
-          const args = []
-          let i
-          for (i = 0; i < tree.args.length; i += 1) {
-            args.push(await this.evaluate(tree.args[i]))
-          }
-          this.callStack.push(tree)
-          const result = procedure.execute(args) || Karol.Value.createNull()
-          this.callStack.pop()
-          return result
-        }
-        this.throwTypeError(`undefined procedure "${tree.first.value}"`, tree.first.position)
+    if (tree.type === Karol.Token.TOKEN_TYPE_IDENTIFIER) {
+      let value
+      if (value = this.context.get(tree.value)) {
+      } else if (this.nativeScope.hasOwnProperty(tree.value)) {
+        value = this.nativeScope[tree.value]
       } else {
-        this.throwTypeError(`expected identifier as procedure name, got token of type ${tree.first.type}`, tree.first.position)
+        this.throwTypeError(`undefined identifier ${tree.value}`)
       }
+
+      if (value.type === Karol.Value.PROCEDURE) {
+        const procedure = value.value
+        this.context.callStack.push(tree)
+        const result = (await procedure.execute([])) || Karol.Value.createNull()
+        this.context.callStack.pop()
+        return result
+      } else {
+        return value
+      }
+    }
+    if (tree.value === '(' && tree.operatorType === Karol.ParserSymbol.OPERATOR_TYPE_BINARY) {
+      let procedure
+      if (tree.first.type === Karol.Token.TOKEN_TYPE_IDENTIFIER) {
+        if (procedure = this.context.get(tree.first.value)) {
+        } else if (this.nativeScope.hasOwnProperty(tree.first.value)) {
+          procedure = this.nativeScope[tree.first.value]
+        } else {
+          this.throwTypeError(`undefined identifier ${tree.first.value}`)
+        }
+      } else {
+        procedure = await this.evaluate(tree.first)
+      }
+      if (procedure.type === Karol.Value.PROCEDURE) {
+        procedure = procedure.value
+      } else {
+        this.throwTypeError(`tried to call a value of type ${procedure.type}, expected a procedure`, tree.first.position)
+      }
+      const args = []
+      let i
+      for (i = 0; i < tree.args.length; i += 1) {
+        args.push(await this.evaluate(tree.args[i]))
+      }
+      this.context.callStack.push(tree)
+      const result = procedure.execute(args) || Karol.Value.createNull()
+      this.context.callStack.pop()
+      return result
     }
     if (tree.value === 'repeat') {
       const {block} = tree
@@ -172,17 +213,14 @@ Karol.Interpreter = class extends Karol.KarolParser {
           await this.evaluateBlock(block)
         }
       }
-    } else if (tree.value === 'procedure') {
-      const {first, block} = tree
-      const name = first.value // first is an identifier and does not have to be evaulated
-      if (this.procedures.hasOwnProperty(name)) {
-        this.throwTypeError(`procedure "${name}" already exists`, first.position)
-      }
-      this.createProcedure(name, block)
-    } else {
-      this.throwTypeError(`undefined procedure "${tree.value}"`, tree.position)
+      return Karol.Value.createNull()
     }
-    return Karol.Value.createNull()
+    if (tree.value === 'procedure') {
+      const {first, block} = tree
+      const name = first.value // first is an identifier and does not have to be evalated
+      return this.createProcedure(name, block)
+    }
+    this.throwTypeError(`unexpected symbol ${tree.value}`, tree.position)
   }
 
 }

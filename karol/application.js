@@ -17,7 +17,7 @@ Karol.Application = class {
   addStandardLibrary () {
     const {interpreter} = this
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'step',
       cb: (args) => this.robot.step(args[0] ? args[0].value : 1),
       expectedArguments: [{
@@ -26,37 +26,37 @@ Karol.Application = class {
       }]
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'turnleft',
       cb: this.robot.turnLeft.bind(this.robot, undefined)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'turnright',
       cb: this.robot.turnRight.bind(this.robot, undefined)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'laydown',
       cb: this.robot.layDown.bind(this.robot, undefined)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'pickup',
       cb: this.robot.pickUp.bind(this.robot, undefined)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'setmark',
       cb: this.robot.setMark.bind(this.robot)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'deletemark',
       cb: this.robot.deleteMark.bind(this.robot)
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'wall',
       cb: () => {
         const position = this.robot.getPositionBefore()
@@ -64,7 +64,7 @@ Karol.Application = class {
       }
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'not',
       cb: (args) => {
         return Karol.Value.createBoolean(!args[0].castToBoolean().value)
@@ -74,21 +74,21 @@ Karol.Application = class {
       }]
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'fast',
       cb: () => {
         interpreter.speed = 200
       }
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'slow',
       cb: () => {
         interpreter.speed = 600
       }
     }))
 
-    interpreter.addProcedure(new Karol.Procedure({
+    interpreter.addNativeProcedure(new Karol.Procedure({
       name: 'print',
       cb: (args) => {
         this.karolConsole.log(...args)

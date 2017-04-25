@@ -13,10 +13,13 @@ Karol.Value = class {
       return this.value.toString()
     }
     if (this.type === Karol.Value.STRING) {
-      return '"' + this.value.toString() + '"'
+      return this.value.toString()
     }
     if (this.type === Karol.Value.BOOLEAN) {
       return this.value ? 'true' : 'false'
+    }
+    if (this.type === Karol.Value.PROCEDURE) {
+      return 'procedure ' + this.value.name
     }
   }
 
@@ -51,10 +54,15 @@ Karol.Value = class {
     return new Karol.Value(Karol.Value.BOOLEAN, false)
   }
 
+  static createProcedure (procedure) {
+    return new Karol.Value(Karol.Value.PROCEDURE, procedure)
+  }
+
 }
 
 Karol.Value.NUMBER = 'Number'
 Karol.Value.STRING = 'String'
 Karol.Value.BOOLEAN = 'Boolean'
+Karol.Value.PROCEDURE = 'Procedure'
 Karol.Value.NULL = 'Null'
 Karol.Value.ANY = 'Any'

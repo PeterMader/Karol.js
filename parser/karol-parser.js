@@ -99,6 +99,38 @@ Karol.KarolParser = class extends Karol.EventEmitter {
       value: ','
     }))
 
+    parser.tokenizer.addKeyWord('*')
+    parser.registerSymbol(new Karol.InfixOperator({
+      value: '*',
+      bindingPower: 60,
+    }))
+
+    parser.tokenizer.addKeyWord('/')
+    parser.registerSymbol(new Karol.InfixOperator({
+      value: '/',
+      bindingPower: 60,
+    }))
+
+    parser.tokenizer.addKeyWord('+')
+    parser.registerSymbol(new Karol.InfixOperator({
+      value: '+',
+      bindingPower: 50,
+      nullDenotation: Karol.PrefixOperator.prototype.defaultNullDenotation
+    }))
+
+    parser.tokenizer.addKeyWord('-')
+    parser.registerSymbol(new Karol.InfixOperator({
+      value: '-',
+      bindingPower: 50,
+      nullDenotation: Karol.PrefixOperator.prototype.defaultNullDenotation
+    }))
+
+    parser.tokenizer.addKeyWord('==')
+    parser.registerSymbol(new Karol.InfixOperator({
+      value: '==',
+      bindingPower: 40
+    }))
+
     parser.tokenizer.addKeyWord('=')
     parser.registerSymbol(new Karol.AssignmentOperator({
       value: '='

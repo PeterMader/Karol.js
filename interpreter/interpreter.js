@@ -15,7 +15,7 @@ Karol.Interpreter = class extends Karol.KarolParser {
 
     this.speed = 500
     this.running = false
-    this.stopped = false
+    this.stopped = true
   }
 
   setExecutionContext (context) {
@@ -48,7 +48,8 @@ Karol.Interpreter = class extends Karol.KarolParser {
     const procedure = new Karol.Procedure({
       cb: this.evaluateBlock.bind(this, block),
       name,
-      userDefined: true
+      userDefined: true,
+      scope: this.context.scope
     })
     const value = Karol.Value.createProcedure(procedure)
     this.context.set(name, value)
@@ -66,7 +67,7 @@ Karol.Interpreter = class extends Karol.KarolParser {
 
     this.context.clearCallStack()
     this.running = false
-    this.stopped = false
+    this.stopped = true
   }
 
   throwTypeError (message, position) {
@@ -74,33 +75,27 @@ Karol.Interpreter = class extends Karol.KarolParser {
   }
 
   wait (ms) {
-    if (!this.running && !this.stopped) {
-      return new Promise((resolve) => {
-        this.once('unpause', resolve)
-      })
-    }
     return new Promise((resolve) => {
-      if (this.stopped) {
-        throw 'Execution stopped'
-      }
-      window.setTimeout(resolve, ms)
+      setTimeout(resolve, ms)
     })
   }
 
   async run (source) {
-    if (this.running) {
-      return
-    }
-    this.emit('start')
+    this.stopped = false
+    this.running = true
+    this.emit('run')
     let result
     try {
       const trees = this.parser.parse(source)
       this.emit('parse')
-      this.running = true
       result = await this.evaluateBlock(trees)
     } catch (e) {
-      this.emit('error', e)
-      result = e
+      if (e !== Karol.Interpreter.EXECUTION_STOPPED) {
+        this.emit('error', e)
+        result = e
+      } else {
+        result = Karol.Value.createNull()
+      }
     }
     this.cleanUp()
     this.emit('finish')
@@ -108,18 +103,40 @@ Karol.Interpreter = class extends Karol.KarolParser {
   }
 
   pause () {
-    this.running = false
-    this.emit('pause')
+    if (this.running) {
+      this.running = false
+      this.emit('pause')
+    }
   }
 
   unpause () {
-    this.running = true
-    this.emit('unpause')
+    if (!this.running && !this.stopped) {
+      this.running = true
+      this.emit('unpause')
+    }
   }
 
   stop () {
-    this.stopped = true
-    this.emit('stop')
+    if (!this.stopped) {
+      if (!this.running) {
+        this.emit('unpause')
+      }
+      this.stopped = true
+      this.emit('stop')
+    }
+  }
+
+  async executeProcedure (procedure, args, caller) {
+    this.context.callStack.push(caller)
+    if (procedure.scope) {
+      this.context.overrideScope(procedure.scope)
+    }
+    const result = (await procedure.execute(args)) || Karol.Value.createNull()
+    if (procedure.scope) {
+      this.context.restoreScope()
+    }
+    this.context.callStack.pop()
+    return result
   }
 
   async evaluateBlock (block) {
@@ -130,16 +147,23 @@ Karol.Interpreter = class extends Karol.KarolParser {
     for (i = 0; i < length; i += 1) {
       const index = i
       await this.wait(this.speed)
-      value = await this.evaluate(block[index])
+      if (!this.running && !this.stopped) {
+        await this.awaitEvent('unpause')
+      }
+      if (this.stopped) {
+        // break the promise chain
+        throw Karol.Interpreter.EXECUTION_STOPPED
+      }
+      value = await this.evaluate(block[index], true)
       this.emit('statement')
     }
     this.context.popScope()
     return value
   }
 
-  async evaluate (tree) {
+  async evaluate (tree, isStatement) {
     if (tree.type === Karol.Token.TOKEN_TYPE_NUMBER) {
-      return Karol.Value.createNumber(tree.value)
+      return new Karol.Number(tree.value)
     }
     if (tree.type === Karol.Token.TOKEN_TYPE_STRING) {
       return Karol.Value.createString(tree.value)
@@ -158,14 +182,25 @@ Karol.Interpreter = class extends Karol.KarolParser {
         this.throwTypeError(`undefined identifier ${tree.value}`)
       }
 
-      if (value.type === Karol.Value.PROCEDURE) {
-        const procedure = value.value
-        this.context.callStack.push(tree)
-        const result = (await procedure.execute([])) || Karol.Value.createNull()
-        this.context.callStack.pop()
-        return result
+      if (isStatement && value.type === Karol.Value.PROCEDURE) {
+        return this.executeProcedure(value.value, [], tree)
       } else {
         return value
+      }
+    }
+    if (tree.value === '==') {
+      const first = await this.evaluate(tree.first)
+      const second = await this.evaluate(tree.second)
+      return Karol.Value.createBoolean(first.type === second.type && first.value === second.value)
+    }
+    if (tree.value === '+') {
+      if (tree.operatorType === Karol.ParserSymbol.OPERATOR_TYPE_BINARY) {
+        const first = await this.evaluate(tree.first)
+        const second = await this.evaluate(tree.second)
+        return first[Karol.Value.OPERATOR_PLUS_BINARY].execute(first, second)
+      } else {
+        const first = await this.evaluate(tree.first)
+        return first[Karol.Value.OPERATOR_PLUS_UNARY].execute(first)
       }
     }
     if (tree.value === '(' && tree.operatorType === Karol.ParserSymbol.OPERATOR_TYPE_BINARY) {
@@ -190,10 +225,7 @@ Karol.Interpreter = class extends Karol.KarolParser {
       for (i = 0; i < tree.args.length; i += 1) {
         args.push(await this.evaluate(tree.args[i]))
       }
-      this.context.callStack.push(tree)
-      const result = procedure.execute(args) || Karol.Value.createNull()
-      this.context.callStack.pop()
-      return result
+      return this.executeProcedure(procedure, args, tree)
     }
     if (tree.value === 'repeat') {
       const {block} = tree
@@ -224,3 +256,5 @@ Karol.Interpreter = class extends Karol.KarolParser {
   }
 
 }
+
+Karol.Interpreter.EXECUTION_STOPPED = Symbol('execution stopped')

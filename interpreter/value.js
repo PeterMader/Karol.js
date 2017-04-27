@@ -5,6 +5,11 @@ Karol.Value = class {
     this.value = value
   }
 
+  copyInto (other) {
+    other.type = this.type
+    other.value = this.value
+  }
+
   toString () {
     if (this.type === Karol.Value.NULL) {
       return 'null'
@@ -66,3 +71,9 @@ Karol.Value.BOOLEAN = 'Boolean'
 Karol.Value.PROCEDURE = 'Procedure'
 Karol.Value.NULL = 'Null'
 Karol.Value.ANY = 'Any'
+
+Karol.Value.OPERATOR_PLUS_UNARY = Symbol('Operator plus unary')
+Karol.Value.prototype[Karol.Value.OPERATOR_PLUS_UNARY] = Karol.Procedure.FAIL
+
+Karol.Value.OPERATOR_PLUS_BINARY = Symbol('Operator plus binary')
+Karol.Value.prototype[Karol.Value.OPERATOR_PLUS_BINARY] = Karol.Procedure.FAIL

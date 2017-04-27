@@ -5,9 +5,10 @@ Karol.Procedure = class {
     this.expectedArguments = Array.isArray(options.expectedArguments) ? options.expectedArguments : []
     this.userDefined = !!options.userDefined
     this.name = options.name || '<unnamed procedure>'
+    this.scope = options.scope || null
   }
 
-  execute (args) {
+  async execute (args) {
     const {cb, expectedArguments} = this
     let index
     for (index in expectedArguments) {
@@ -17,13 +18,25 @@ Karol.Procedure = class {
         continue
       }
       if (!real) {
-        throw new Karol.TypeError(`procedure ${this.name}: missing argument ${index}, expected it to be of type ${expectedArguments[index]}`)
+        throw new Karol.TypeError(`procedure ${this.name}: missing argument ${index}`)
+      }
+      if (Array.isArray(expected.types)) {
+        if (expected.types.indexOf(real.type) < 0) {
+          const types = expected.types.reduce((a, b) => a + ', ' + b, '')
+          throw new Karol.TypeError(`procedure ${this.name}: expected argument ${index} to be of types ${types}got type ${args[index].type}`)
+        }
       }
       if (expected.type !== real.type && expected.type !== Karol.Value.ANY) {
-        throw new Karol.TypeError(`procedure ${this.name}: expected argument ${index} to be of type ${expectedArguments[index]}, got type ${args[index].type}`)
+        throw new Karol.TypeError(`procedure ${this.name}: expected argument ${index} to be of type ${expected.type}, got type ${args[index].type}`)
       }
     }
-    return cb(args)
+    return await cb(args)
   }
 
 }
+
+Karol.Procedure.FAIL = new Karol.Procedure({
+  cb: () => {
+    throw new Karol.TypeError(`undefined action`)
+  }
+})

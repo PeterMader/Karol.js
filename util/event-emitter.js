@@ -4,34 +4,59 @@ Karol.EventEmitter = class {
     this._events = {}
   }
 
-  on (channel) {
-    const listeners = Array.from(arguments).slice(1).filter((cb) => typeof cb === 'function')
+  on (channel, ...listeners) {
+    const filtered = listeners.filter((cb) => typeof cb === 'function')
     if (Array.isArray(this._events[channel])) {
-      this._events[channel] = this._events[channel].concat(listeners)
+      this._events[channel] = this._events[channel].concat(filtered)
     } else {
-      this._events[channel] = listeners
+      this._events[channel] = filtered
     }
     return this
   }
 
-  once (channel) {
-    const listeners = Array.from(arguments).slice(1).filter((cb) => typeof cb === 'function').map((cb) => {
+  listen (channels, ...listeners) {
+    if (Array.isArray(channels)) {
+      let index
+      for (index in channels) {
+        this.on(channels[index], ...listeners)
+      }
+    }
+    return this
+  }
+
+  listenOnce (channels, ...listeners) {
+    if (Array.isArray(channels)) {
+      let index
+      for (index in channels) {
+        this.once(channels[index], ...listeners)
+      }
+    }
+    return this
+  }
+
+  awaitEvent (channel) {
+    return new Promise((resolve, reject) => {
+      this.once(channel, resolve)
+    })
+  }
+
+  once (channel, ...listeners) {
+    const filtered = listeners.filter((cb) => typeof cb === 'function').map((cb) => {
       const listener = (...args) => {
-        self.remove(channel, listener)
-        cb.apply(null, arguments)
+        this.remove(channel, listener)
+        cb.apply(null, args)
       }
       return listener
     })
     if (Array.isArray(this._events[channel])) {
-      this._events[channel] = this._events[channel].concat(listeners)
+      this._events[channel] = this._events[channel].concat(filtered)
     } else {
-      this._events[channel] = listeners
+      this._events[channel] = filtered
     }
     return this
   }
 
-  emit (channel) {
-    const args = Array.from(arguments).slice(1)
+  emit (channel, ...args) {
     if (Array.isArray(this._events[channel])) {
       const listeners = this._events[channel]
       let index
@@ -42,8 +67,8 @@ Karol.EventEmitter = class {
     return this
   }
 
-  remove (channel) {
-    const listenersToRemove = Array.from(arguments).slice(1).filter((cb) => typeof cb === 'function')
+  remove (channel, ...listeners) {
+    const listenersToRemove = Array.slice(arguments, 1).filter((cb) => typeof cb === 'function')
     if (Array.isArray(this._events[channel])) {
       const listeners = this._events[channel]
       let index

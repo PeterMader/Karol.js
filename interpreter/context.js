@@ -2,7 +2,19 @@ Karol.Context = class {
 
   constructor (main) {
     this.scope = {}
+    this.scopes = [this.scope]
     this.callStack = [main]
+  }
+
+  overrideScope (scope) {
+    this.scopes.push(scope)
+    this.scope = scope
+  }
+
+  restoreScope () {
+    if (this.scopes.length > 1) {
+      this.scope = this.scopes.pop()
+    }
   }
 
   pushScope () {
@@ -32,7 +44,12 @@ Karol.Context = class {
   }
 
   set (name, value) {
-    this.scope[name] = value
+    let old = this.get(name)
+    if (old) {
+      value.copyInto(old)
+    } else {
+      this.scope[name] = value
+    }
   }
 
 }

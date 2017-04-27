@@ -94,6 +94,19 @@ Karol.Application = class {
         this.karolConsole.log(...args)
       }
     }))
+
+    interpreter.addNativeProcedure(new Karol.Procedure({
+      name: 'wait',
+      cb: (args) => {
+        const time = args[0].value
+        return new Promise((resolve, reject) => {
+          setTimeout(resolve, time)
+        })
+      },
+      expectedArguments: [{
+        type: Karol.Value.NUMBER
+      }]
+    }))
   }
 
   render () {

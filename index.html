@@ -24,8 +24,9 @@
     <script src="parser/karol-parser.js" charset="utf-8"></script>
 
     <script src="interpreter/interpreter.js" charset="utf-8"></script>
-    <script src="interpreter/value.js" charset="utf-8"></script>
     <script src="interpreter/procedure.js" charset="utf-8"></script>
+    <script src="interpreter/value.js" charset="utf-8"></script>
+    <script src="interpreter/number.js" charset="utf-8"></script>
     <script src="interpreter/context.js" charset="utf-8"></script>
 
     <script src="karol/application.js" charset="utf-8"></script>
@@ -41,6 +42,8 @@
       <div class="pane">
         <div class="controls">
           <button type="button" id="run">Run</button>
+          <button type="button" id="pause" disabled="disabled">Pause</button>
+          <button type="button" id="stop" disabled="disabled">Stop</button>
         </div>
         <textarea id="editor" rows="20" cols="60"></textarea>
       </div>

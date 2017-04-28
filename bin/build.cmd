@@ -1,0 +1,1 @@
+@node_modules\.bin\browserify.cmd index.js -o dist\karol.js -t [ babelify --presets [ env ] ]

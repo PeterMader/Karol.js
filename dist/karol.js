@@ -1,59 +1,38 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
-window.Karol = {
-  Robot: require('./lib/robot.js'),
-  World: require('./lib/world.js'),
-  WorldTile: require('./lib/world-tile.js'),
-  Error: require('./lib/error.js')
-};
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-},{"./lib/error.js":2,"./lib/robot.js":3,"./lib/world-tile.js":4,"./lib/world.js":5}],2:[function(require,module,exports){
-'use strict';
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Error = module.exports = function () {
-  function _class(message, position, stack) {
-    _classCallCheck(this, _class);
-
-    this.message = message;
-    this.position = position || {
-      line: 0,
-      column: 0
-    };
-    this.stack = stack || [];
+(function (factory) {
+  if ((typeof window === 'undefined' ? 'undefined' : _typeof(window)) === 'object') {
+    window.Karol = factory();
+  } else if ((typeof module === 'undefined' ? 'undefined' : _typeof(module)) === 'object' && _typeof(module.exports) === 'object' && typeof require === 'function') {
+    module.exports = factory();
   }
+})(function () {
+  return {
+    Robot: require('./lib/robot.js'),
+    World: require('./lib/world.js'),
+    WorldTile: require('./lib/world-tile.js')
+  };
+});
 
-  _createClass(_class, [{
-    key: 'toString',
-    value: function toString() {
-      return 'Error: ' + this.message;
-    }
-  }]);
-
-  return _class;
-}();
-
-},{}],3:[function(require,module,exports){
+},{"./lib/robot.js":2,"./lib/world-tile.js":3,"./lib/world.js":4}],2:[function(require,module,exports){
 'use strict';
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Error = require('./error.js');
 
 var Robot = module.exports = function () {
-  function _class(world, x, y) {
+  function _class(world, x, z) {
     _classCallCheck(this, _class);
 
     this.world = world;
     world.addRobot(this);
     this.x = x || 0;
-    this.z = y || 0;
+    this.z = z || 0;
+    this.stepHeight = 1;
     this.direction = Robot.SOUTH;
   }
 
@@ -63,12 +42,16 @@ var Robot = module.exports = function () {
       var max = typeof steps === 'number' && steps >= 0 ? steps : 1;
       var i = void 0;
       for (i = 0; i < max; i += 1) {
-        var position = this.getPositionBefore();
-        if (this.world.isOutOfBounds(position.x, position.z)) {
+        var tile = this.getTileBeforePosition();
+        if (!tile) {
           throw new Error('Cannot step outside of world.');
+        } else if (tile.hasBarrier) {
+          throw new Error('Cannot step onto barrier.');
+        } else if (Math.abs(tile.blocks - this.getTileAtPosition().blocks) > this.stepHeight) {
+          throw new Error('Cannot jump so high or deep.');
         } else {
-          this.x = position.x;
-          this.z = position.z;
+          this.x = tile.x;
+          this.z = tile.z;
         }
       }
     }
@@ -79,6 +62,11 @@ var Robot = module.exports = function () {
         x: this.x,
         z: this.z
       };
+    }
+  }, {
+    key: 'getTileAtPosition',
+    value: function getTileAtPosition() {
+      return this.world.getTileAt(this.x, this.z);
     }
   }, {
     key: 'getPositionBefore',
@@ -104,6 +92,12 @@ var Robot = module.exports = function () {
           z: this.z
         };
       }
+    }
+  }, {
+    key: 'getTileBeforePosition',
+    value: function getTileBeforePosition() {
+      var position = this.getPositionBefore();
+      return this.world.getTileAt(position.x, position.z);
     }
   }, {
     key: 'turnLeft',
@@ -166,10 +160,33 @@ var Robot = module.exports = function () {
       this.world.getTileAt(position.x, position.z).hasMark = true;
     }
   }, {
-    key: 'deleteMark',
-    value: function deleteMark() {
+    key: 'removeMark',
+    value: function removeMark() {
       var position = this.getPosition();
       this.world.getTileAt(position.x, position.z).hasMark = false;
+    }
+  }, {
+    key: 'setBarrier',
+    value: function setBarrier() {
+      var position = this.getPositionBefore();
+      var tile = this.world.getTileAt(position.x, position.z);
+      if (!tile) {
+        throw new Error('Cannot set a barrier outside of world.');
+      }
+      if (tile.hasMark || tile.blocks > 0) {
+        throw new Error('Cannot set a barrier on a non-empty tile.');
+      }
+      tile.hasBarrier = true;
+    }
+  }, {
+    key: 'removeBarrier',
+    value: function removeBarrier() {
+      var position = this.getPositionBefore();
+      var tile = this.world.getTileAt(position.x, position.z);
+      if (!tile) {
+        throw new Error('Cannot remove a barrier outside of world.');
+      }
+      tile.hasBarrier = false;
     }
   }]);
 
@@ -181,15 +198,17 @@ Robot.EAST = Symbol('East');
 Robot.SOUTH = Symbol('South');
 Robot.WEST = Symbol('West');
 
-},{"./error.js":2}],4:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 "use strict";
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var WorldTile = module.exports = function () {
-  function _class() {
+  function _class(x, z) {
     _classCallCheck(this, _class);
 
+    this.x = x || 0;
+    this.z = z || 0;
     this.blocks = 0;
     this.hasMark = false;
     this.hasBarrier = false;
@@ -198,15 +217,15 @@ var WorldTile = module.exports = function () {
   return _class;
 }();
 
-},{}],5:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 'use strict';
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var Robot = require('./robot.js');
 var WorldTile = require('./world-tile.js');
+var Robot = require('./robot.js');
 
 var World = module.exports = function () {
   function _class(canvas, width, depth, height) {
@@ -245,7 +264,7 @@ var World = module.exports = function () {
       for (x = 0; x < this.width; x += 1) {
         this.data[x] = [];
         for (z = 0; z < this.depth; z += 1) {
-          this.data[x][z] = new WorldTile();
+          this.data[x][z] = new WorldTile(x, z);
         }
       }
     }
@@ -270,10 +289,22 @@ var World = module.exports = function () {
       for (x = 0; x < this.width; x += 1) {
         for (z = 0; z < this.depth; z += 1) {
           var tile = this.getTileAt(x, z);
-          ctx.fillStyle = tile.hasMark ? 'yellow' : 'red';
-          ctx.fillRect(x * tileWidth, z * tileHeight, tileWidth - 2, tileHeight - 2);
-          ctx.fillStyle = 'white';
-          ctx.fillText(tile.blocks.toString(), x * tileWidth + 10, z * tileHeight + 25);
+          if (tile.hasBarrier) {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(x * tileWidth, z * tileHeight, tileWidth - 2, tileHeight - 2);
+          } else {
+            if (tile.hasMark) {
+              ctx.fillStyle = 'yellow';
+              ctx.fillRect(x * tileWidth, z * tileHeight, tileWidth - 2, tileHeight - 2);
+            } else if (tile.blocks > 0) {
+              ctx.fillStyle = 'red';
+              ctx.fillRect(x * tileWidth, z * tileHeight, tileWidth - 2, tileHeight - 2);
+            }
+            if (tile.blocks > 0) {
+              ctx.fillStyle = 'white';
+              ctx.fillText(tile.blocks.toString(), x * tileWidth + 10, z * tileHeight + 25);
+            }
+          }
         }
       }
 
@@ -327,7 +358,7 @@ var World = module.exports = function () {
     }
   }, {
     key: 'createImage',
-    value: function createImage(openDialog, imageType) {
+    value: function createImage(imageType) {
       var dataURL = this.ctx.canvas.toDataURL(imageType || 'image/png');
       return dataURL;
     }
@@ -336,4 +367,4 @@ var World = module.exports = function () {
   return _class;
 }();
 
-},{"./robot.js":3,"./world-tile.js":4}]},{},[1]);
+},{"./robot.js":2,"./world-tile.js":3}]},{},[1]);

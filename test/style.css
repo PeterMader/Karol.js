@@ -1,0 +1,17 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: monospace;
+}
+
+dt {
+  background-color: #DDDDDD;
+  border: 1px solid #888888;
+  border-radius: 3px;
+  display: unset;
+  padding: 3px 5px;
+}
+
+.controls {
+  padding: 10px;
+}

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const canvas = document.getElementById('canvas')
+  const button = document.getElementById('button')
   const world = new Karol.World(canvas)
   const robot = new MyRobot(world, 5, 5)
 
@@ -61,6 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (paused) {
       world.render()
     }
+  })
+
+  button.addEventListener('click', () => {
+    button.href = world.createImage()
   })
 
 })

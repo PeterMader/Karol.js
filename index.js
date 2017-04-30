@@ -1,8 +1,7 @@
 ((factory) => {
+  module.exports = factory()
   if (typeof window === 'object') {
-    window.Karol = factory()
-  } else if (typeof module === 'object' && typeof module.exports === 'object' && typeof require === 'function') {
-    module.exports = factory()
+    window.Karol = module.exports
   }
 })(() => {
   return {
